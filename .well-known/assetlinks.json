@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.akira.budgetnotif",
+      "sha256_cert_fingerprints": [
+        "4B:57:CF:8A:C4:5B:7A:15:D6:D5:CE:89:FF:1A:C5:70:10:67:D6:43:30:97:8E:B0:D3:54:6C:B2:4E:42:4A:04"
+      ]
+    }
+  }
+]

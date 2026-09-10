@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retour BudgetNotif</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 24px;
+         background: #121212; color: #eee; line-height: 1.5; }
+  h1 { font-size: 20px; margin-top: 0; }
+  h2 { font-size: 16px; margin: 24px 0 8px; color: #ccc; }
+  .adresse { font-family: ui-monospace, monospace; font-size: 14px;
+             background: #1f1f1f; border: 1px solid #2e7d32; border-radius: 8px;
+             padding: 16px; word-break: break-all; margin: 12px 0; }
+  a.bouton, button { display: block; box-sizing: border-box; text-align: center;
+           text-decoration: none; font-size: 16px; padding: 14px 18px;
+           width: 100%; background: #2e7d32; color: #fff; border: 0;
+           border-radius: 8px; margin: 12px 0; }
+  button.secondaire { background: #333; border: 1px solid #555; }
+  .discret { color: #aaa; font-size: 14px; }
+  .alerte { border-left: 4px solid #c62828; padding-left: 12px; }
+  ol { padding-left: 20px; }
+  li { margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<h1>Retour de la banque</h1>
+
+<p class="discret">
+  Normalement, cette page ne devrait jamais s'afficher : BudgetNotif doit
+  s'ouvrir toute seule. Si tu la vois, c'est que l'ouverture automatique n'a
+  pas fonctionné — mais rien n'est perdu.
+</p>
+
+<div id="resultat"></div>
+
+<p class="discret">
+  Cette page ne fait rien d'autre qu'afficher ce que ton navigateur a reçu.
+  Elle n'envoie rien, nulle part : elle est entièrement statique, et ce texte
+  ne quitte pas ton téléphone.
+</p>
+
+<script>
+  // L'adresse canonique, SANS barre oblique finale.
+  //
+  // Ce détail décide de tout. Le manifeste de BudgetNotif intercepte le
+  // chemin "/budgetnotif/retour" au caractère près. Or GitHub Pages, quand on
+  // demande cette adresse, renvoie vers "/budgetnotif/retour/" — avec une
+  // barre en plus. Recopier ce que montre la barre d'adresse ne marcherait
+  // donc pas : Android ne reconnaîtrait plus le chemin et rouvrirait le
+  // navigateur, en boucle.
+  //
+  // On reconstruit donc l'adresse à partir de la forme exacte que
+  // l'application attend, et on y remet les paramètres reçus tels quels.
+  var CHEMIN_EXACT = 'https://clanakira.github.io/budgetnotif/retour';
+
+  var requete = window.location.search;
+  var params = new URLSearchParams(requete);
+  var code = params.get('code');
+  var etat = params.get('state');
+  var erreur = params.get('error');
+  var sortie = document.getElementById('resultat');
+
+  function echapper(texte) {
+    return String(texte).replace(/[<>&"]/g, '');
+  }
+
+  if (erreur) {
+    sortie.innerHTML =
+      '<p class="alerte"><strong>La banque a refusé l\'autorisation.</strong><br>' +
+      'Raison : <code>' + echapper(erreur) + '</code><br>' +
+      'Il faut recommencer depuis BudgetNotif.</p>';
+
+  } else if (code && etat) {
+    var adresseHttps = CHEMIN_EXACT + requete;
+
+    // La porte de secours directe. Une adresse "budgetnotif://" n'a besoin
+    // d'aucune vérification par Android : elle ouvre l'application à coup sûr,
+    // même si le lien https n'a pas été validé. Enable Banking refuse ce type
+    // d'adresse comme adresse de retour, mais rien n'empêche BudgetNotif de la
+    // reconnaître pour se dépanner elle-même.
+    var adresseMaison = 'budgetnotif://retour' + requete;
+
+    sortie.innerHTML =
+      '<p><strong>La banque a bien répondu.</strong> Il ne reste qu\'à ramener ' +
+      'sa réponse dans l\'application.</p>' +
+
+      '<a class="bouton" id="ouvrir">Ouvrir BudgetNotif</a>' +
+
+      '<h2>Si ce bouton ne fait rien</h2>' +
+      '<ol>' +
+      '<li>Appuie sur <strong>Copier l\'adresse</strong> ci-dessous.</li>' +
+      '<li>Colle-la dans la <strong>barre d\'adresse</strong> du navigateur, ' +
+      'tout en haut, à la place de ce qui s\'y trouve.</li>' +
+      '<li>Valide. BudgetNotif s\'ouvre.</li>' +
+      '</ol>' +
+      '<div class="adresse" id="valeur"></div>' +
+      '<button class="secondaire" id="copier">Copier l\'adresse</button>' +
+
+      '<p class="discret">Cette réponse est valable quelques minutes ' +
+      'seulement, et ne sert qu\'une fois. Passé ce délai, il faut refaire ' +
+      'l\'autorisation depuis BudgetNotif.</p>';
+
+    document.getElementById('ouvrir').href = adresseMaison;
+    document.getElementById('valeur').textContent = adresseHttps;
+    document.getElementById('copier').onclick = function () {
+      var bouton = this;
+      navigator.clipboard.writeText(adresseHttps).then(function () {
+        bouton.textContent = 'Adresse copiée';
+      }, function () {
+        // Le presse-papier peut être refusé. Le dire, plutôt que de laisser
+        // croire que c'est copié : akira collerait alors n'importe quoi.
+        bouton.textContent = 'Copie refusée — sélectionne l\'adresse à la main';
+      });
+    };
+
+  } else if (code) {
+    // Un code sans "state" ne sert à rien : l'application refuse un retour
+    // dont elle ne peut pas vérifier la provenance. Mieux vaut le dire ici que
+    // de laisser akira s'acharner.
+    sortie.innerHTML =
+      '<p class="alerte">La banque a renvoyé un code, mais sans son numéro de ' +
+      'sécurité (<code>state</code>).<br>' +
+      'L\'application refusera ce retour. Il faut recommencer l\'autorisation ' +
+      'depuis BudgetNotif.</p>';
+
+  } else {
+    sortie.innerHTML =
+      '<p class="alerte">Aucun code dans cette adresse.<br>' +
+      'Le parcours d\'autorisation n\'est pas allé à son terme : il faut le ' +
+      'recommencer depuis BudgetNotif.</p>';
+  }
+</script>
+
+</body>
+</html>
